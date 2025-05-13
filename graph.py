@@ -47,7 +47,9 @@ db = Chroma(persist_directory="data/pubmed_qa/", embedding_function=hf)
 retriever = db.as_retriever(search_type="mmr", search_kwargs={"k": 4})
 
 # Setup LLM
-llm = ChatGroq(model="llama-3.1-8b-instant")
+llm = ChatGroq(
+    model="llama-3.1-8b-instant",
+)
 
 
 # State Definition
@@ -140,6 +142,7 @@ HIGH_RISK_KEYWORDS = [
 
 # Pydantic Models
 class EmergencyClassification(BaseModel):
+    """Just one out of is_emergency and is_high_risk can be true, both they can both be fa;se"""
     is_emergency: bool = Field(
         description="True if this is a medical emergency requiring immediate attention"
     )
@@ -189,32 +192,34 @@ def safety_filter(state: MedicalChatState) -> MedicalChatState:
         state["emergency_keywords"] = [
             kw for kw in EMERGENCY_KEYWORDS if kw in current_input
         ]
-        # Skip LLM check if emergency keywords found
-        return state
-
-    # Use LLM for more nuanced emergency detection
-    system_message = SystemMessage(
-        content="""You are a medical triage assistant. Classify the following message:
-        - Is this a medical emergency requiring immediate 911 attention?
-        - Is this a high-risk situation requiring urgent care within 24 hours?
-        - Rate severity from 1-10 (10 = life-threatening)
-        
-        Consider factors like severe pain, breathing issues, chest pain, neurological symptoms, etc."""
-    )
-
-    human_message = HumanMessage(content=f"Patient message: {state['current_input']}")
-
-    structured_llm = llm.with_structured_output(EmergencyClassification)
-    classification = structured_llm.invoke([system_message, human_message])
-
-    if classification.is_emergency:
-        state["severity_level"] = "emergency"
-    elif classification.is_high_risk:
-        state["severity_level"] = "high_risk"
     else:
-        state["severity_level"] = "normal"
+        # Use LLM for more nuanced emergency detection
+        system_message = SystemMessage(
+            content="""You are a medical triage assistant. Classify the following message:
+            - Is this a medical emergency requiring immediate 911 attention?
+            - Is this a high-risk situation requiring urgent care within 24 hours?
+            - Rate severity from 1-10 (10 = life-threatening)
+            
+            Consider factors like severe pain, breathing issues, chest pain, neurological symptoms, etc."""
+        )
 
-    state["extracted_info"]["emergency_classification"] = classification.model_dump()
+        human_message = HumanMessage(
+            content=f"Patient message: {state['current_input']}"
+        )
+
+        structured_llm = llm.with_structured_output(EmergencyClassification)
+        classification = structured_llm.invoke([system_message, human_message])
+
+        if classification.is_emergency:
+            state["severity_level"] = "emergency"
+        elif classification.is_high_risk:
+            state["severity_level"] = "high_risk"
+        else:
+            state["severity_level"] = "normal"
+
+        state["extracted_info"][
+            "emergency_classification"
+        ] = classification.model_dump()
 
     print(f"Safety filter result: {state['severity_level']}")
     return state
@@ -260,7 +265,6 @@ This AI assistant cannot replace emergency medical care. Please contact emergenc
 
     state["messages"].append(AIMessage(content=emergency_message))
     state["conversation_continuing"] = False
-    state["follow_up_needed"] = False  # Explicitly set to False
     return state
 
 

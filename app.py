@@ -1,4 +1,5 @@
 import os
+
 os.environ["STREAMLIT_SERVER_FILE_WATCHER"] = "false"
 import logging
 import uuid
@@ -168,7 +169,7 @@ with st.sidebar:
     st.markdown(
         """
     - **Version**: 1.0.0
-    - **Last Updated**: 2025
+    - **Last Updated**: 2024
     - **Purpose**: Medical symptom discussion and guidance
     """
     )
