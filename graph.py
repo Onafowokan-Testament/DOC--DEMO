@@ -441,7 +441,7 @@ Instructions:
 5. Offer practical advice when appropriate
 6. If symptoms are concerning, encourage medical evaluation
 7. Use the medical context to provide evidence-based information
-8. Be brief as possible to avoind it be too lengthy
+8. Be Clear and concise.
 
 Respond in a caring, informative manner."""
 
