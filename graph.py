@@ -143,6 +143,7 @@ HIGH_RISK_KEYWORDS = [
 # Pydantic Models
 class EmergencyClassification(BaseModel):
     """Just one out of is_emergency and is_high_risk can be true, both they can both be fa;se"""
+
     is_emergency: bool = Field(
         description="True if this is a medical emergency requiring immediate attention"
     )
@@ -382,11 +383,11 @@ def information_gathering(state: MedicalChatState) -> MedicalChatState:
         response = llm.invoke([system_message, human_message])
         follow_up_questions = response.content
 
-        state["messages"].append(
-            AIMessage(
-                content=f"I'd like to better understand your symptoms to help you. {follow_up_questions}"
-            )
-        )
+        # state["messages"].append(
+        #     AIMessage(
+        #         content=f"I'd like to better understand your symptoms to help you. {follow_up_questions}"
+        #     )
+        # )
         state["follow_up_needed"] = True
         return state
 
@@ -440,6 +441,7 @@ Instructions:
 5. Offer practical advice when appropriate
 6. If symptoms are concerning, encourage medical evaluation
 7. Use the medical context to provide evidence-based information
+8. Be brief as possible to avoind it be too lengthy
 
 Respond in a caring, informative manner."""
 
