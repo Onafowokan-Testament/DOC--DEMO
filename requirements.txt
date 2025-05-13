@@ -12,3 +12,6 @@ langchain-chroma>=0.1.2
 pandas
 langchain_huggingface
 langchain-groq
+grandalf
+streamlit
+datasets
