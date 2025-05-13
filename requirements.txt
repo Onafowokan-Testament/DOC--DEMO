@@ -1,1 +1,14 @@
 youtube-transcript-api
+langchain-google-genai
+langchain
+langgraph
+langchain-community
+faiss-cpu
+python-dotenv
+langchain-chroma>=0.1.2
+tiktoken
+langchain-qdrant
+langchain-chroma>=0.1.2
+pandas
+langchain_huggingface
+langchain-groq
