@@ -214,8 +214,14 @@ class EmergencyClassification(BaseModel):
 class SymptomExtraction(BaseModel):
     symptoms: List[str] = Field(description="List of medical symptoms mentioned")
     body_parts: List[str] = Field(description="Body parts or organs mentioned")
-    duration: str = Field(description="How long symptoms have been present")
-    severity: str = Field(description="Severity of symptoms (mild, moderate, severe)")
+    duration: str = Field(
+        description="How long symptoms have been present (e.g., '2 days', 'several hours')", 
+        default="Not specified"
+    )
+    severity: str = Field(
+        description="Severity of symptoms (mild, moderate, severe)",
+        default="Not specified"
+    )
 
 
 # Node Functions
