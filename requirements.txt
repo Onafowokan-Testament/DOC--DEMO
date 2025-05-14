@@ -11,4 +11,5 @@ langchain-groq
 grandalf
 langchain-community
 streamlit
+faiss-cpu
 datasets
