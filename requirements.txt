@@ -9,5 +9,8 @@ pandas
 langchain_huggingface
 langchain-groq
 grandalf
+langchain-community
 streamlit
+faiss-cpu
 datasets
+python-telegram-bot

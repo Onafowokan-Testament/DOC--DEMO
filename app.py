@@ -9,7 +9,7 @@ import streamlit as st
 from langchain_core.messages import AIMessage, HumanMessage
 
 # Import our medical bot components
-from graph import medical_bot
+from medical_bot_core import medical_bot
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -73,29 +73,66 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
+# Initialize session state with proper defaults
+def initialize_session_state():
+    """Initialize session state with proper defaults"""
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            AIMessage(
+                content="Hello! I'm your medical assistant. How can I help you today?"
+            )
+        ]
+
+    if "conversation_id" not in st.session_state:
+        st.session_state.conversation_id = str(uuid.uuid4())
+
+    if "bot_state" not in st.session_state:
+        st.session_state.bot_state = {
+            "messages": [],
+            "current_input": "",
+            "symptoms": [],
+            "severity_level": "",
+            "extracted_info": {},
+            "emergency_keywords": [],
+            "high_risk_symptoms": [],
+            "documents": [],
+            "medical_response": "",
+            "follow_up_questions": [],
+            "conversation_active": True,
+        }
+
+    # Ensure bot_state messages are in sync with session messages
+    if "messages" in st.session_state.bot_state:
+        st.session_state.bot_state["messages"] = st.session_state.messages.copy()
+
+
+# Function to serialize messages for storage
+def serialize_messages(messages):
+    """Convert messages to JSON-serializable format"""
+    serialized = []
+    for msg in messages:
+        if isinstance(msg, HumanMessage):
+            serialized.append({"type": "human", "content": msg.content})
+        elif isinstance(msg, AIMessage):
+            serialized.append({"type": "ai", "content": msg.content})
+    return serialized
+
+
+# Function to deserialize messages from storage
+def deserialize_messages(serialized_messages):
+    """Convert JSON-serializable format back to messages"""
+    messages = []
+    for msg in serialized_messages:
+        if msg["type"] == "human":
+            messages.append(HumanMessage(content=msg["content"]))
+        elif msg["type"] == "ai":
+            messages.append(AIMessage(content=msg["content"]))
+    return messages
+
+
 # Initialize session state
-if "messages" not in st.session_state:
-    st.session_state.messages = [
-        AIMessage(
-            content="Hello! I'm your medical assistant. How can I help you today?"
-        )
-    ]
-if "conversation_id" not in st.session_state:
-    st.session_state.conversation_id = str(uuid.uuid4())
-if "bot_state" not in st.session_state:
-    st.session_state.bot_state = {
-        "messages": st.session_state.messages.copy(),
-        "current_input": "",
-        "symptoms": [],
-        "severity_level": "",
-        "extracted_info": {},
-        "emergency_keywords": [],
-        "high_risk_symptoms": [],
-        "documents": [],
-        "medical_response": "",
-        "follow_up_questions": [],
-        "conversation_active": True,
-    }
+initialize_session_state()
 
 # Sidebar
 with st.sidebar:
@@ -127,6 +164,7 @@ with st.sidebar:
 
     # Conversation management
     if st.button("🔄 New Conversation"):
+        # Clear session state for new conversation
         st.session_state.messages = [
             AIMessage(
                 content="Hello! I'm your medical assistant. How can I help you today?"
@@ -161,6 +199,18 @@ with st.sidebar:
                 file_name=f"medical_conversation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
             )
+
+    # Debug information (remove in production)
+    with st.expander("🔍 Debug Info"):
+        st.write(f"Conversation ID: {st.session_state.conversation_id}")
+        st.write(f"Number of messages: {len(st.session_state.messages)}")
+        st.write(
+            f"Bot state active: {st.session_state.bot_state.get('conversation_active', True)}"
+        )
+
+        # Show serialized state for debugging
+        if st.button("Show Serialized State"):
+            st.json(serialize_messages(st.session_state.messages))
 
     st.markdown("---")
 
@@ -222,60 +272,67 @@ for message in st.session_state.messages:
             )
 
 # Chat input
-with st.container():
-    user_input = st.chat_input("Describe your symptoms or health concerns...")
+user_input = st.chat_input("Describe your symptoms or health concerns...")
 
-    if user_input:
-        # Add user message to session state
-        st.session_state.messages.append(HumanMessage(content=user_input))
+if user_input:
+    # Add user message to session state
+    st.session_state.messages.append(HumanMessage(content=user_input))
 
-        # Update bot state with new message
-        st.session_state.bot_state["messages"] = st.session_state.messages.copy()
-        st.session_state.bot_state["current_input"] = user_input
+    # Update bot state with new message - ensure proper sync
+    st.session_state.bot_state["messages"] = st.session_state.messages.copy()
+    st.session_state.bot_state["current_input"] = user_input
 
-        # Show loading spinner
-        with st.spinner("Analyzing your symptoms..."):
-            try:
-                # Invoke the medical bot with current state
-                result = medical_bot.invoke(
-                    st.session_state.bot_state,
-                    config={
-                        "configurable": {"thread_id": st.session_state.conversation_id},
-                        "recursion_limit": 100,
-                    },
-                )
+    # Show loading spinner
+    with st.spinner("Analyzing your symptoms..."):
+        try:
+            # Create a copy of bot state for the invocation
+            current_state = st.session_state.bot_state.copy()
 
-                # Update the bot state with the result
-                st.session_state.bot_state = result
+            # Invoke the medical bot with current state
+            result = medical_bot.invoke(
+                current_state,
+                config={
+                    "configurable": {"thread_id": st.session_state.conversation_id},
+                    "recursion_limit": 100,
+                },
+            )
 
-                # Get the latest AI messages that aren't already displayed
+            # Update the bot state with the result
+            st.session_state.bot_state.update(result)
+
+            # Extract new messages from the result
+            if "messages" in result:
+                # Get only new messages that aren't already in session state
+                existing_message_contents = [
+                    msg.content for msg in st.session_state.messages
+                ]
                 for msg in result["messages"]:
                     if (
                         isinstance(msg, AIMessage)
-                        and msg not in st.session_state.messages
+                        and msg.content not in existing_message_contents
                     ):
                         st.session_state.messages.append(msg)
 
-                # Update conversation active status
-                if not result.get("conversation_active", True):
-                    st.session_state.messages.append(
-                        AIMessage(
-                            content="Thank you for chatting. Wishing you good health! If you have more questions later, feel free to ask."
-                        )
-                    )
-
-            except Exception as e:
-                logger.error(f"Error processing user input: {str(e)}")
-                st.error(
-                    "I'm sorry, I encountered an error processing your request. Please try again."
-                )
+            # Update conversation active status
+            if not result.get("conversation_active", True):
                 st.session_state.messages.append(
                     AIMessage(
-                        content="I'm sorry, I encountered an error. Could you please rephrase your question?"
+                        content="Thank you for chatting. Wishing you good health! If you have more questions later, feel free to ask."
                     )
                 )
 
-        st.rerun()
+        except Exception as e:
+            logger.error(f"Error processing user input: {str(e)}")
+            st.error(
+                "I'm sorry, I encountered an error processing your request. Please try again."
+            )
+            st.session_state.messages.append(
+                AIMessage(
+                    content="I'm sorry, I encountered an error. Could you please rephrase your question?"
+                )
+            )
+
+    st.rerun()
 
 # Footer
 st.markdown("---")
