@@ -4,6 +4,7 @@ os.environ["STREAMLIT_SERVER_FILE_WATCHER"] = "false"
 import logging
 import uuid
 from datetime import datetime
+import json
 
 import streamlit as st
 from langchain_core.messages import AIMessage, HumanMessage
@@ -73,7 +74,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1e9929d8f38e69a0e9feda7fb49bb0b0f31ab9b5
 # Initialize session state with proper defaults
 def initialize_session_state():
     """Initialize session state with proper defaults"""
@@ -83,10 +87,17 @@ def initialize_session_state():
                 content="Hello! I'm your medical assistant. How can I help you today?"
             )
         ]
+<<<<<<< HEAD
 
     if "conversation_id" not in st.session_state:
         st.session_state.conversation_id = str(uuid.uuid4())
 
+=======
+    
+    if "conversation_id" not in st.session_state:
+        st.session_state.conversation_id = str(uuid.uuid4())
+    
+>>>>>>> 1e9929d8f38e69a0e9feda7fb49bb0b0f31ab9b5
     if "bot_state" not in st.session_state:
         st.session_state.bot_state = {
             "messages": [],
@@ -101,12 +112,19 @@ def initialize_session_state():
             "follow_up_questions": [],
             "conversation_active": True,
         }
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 1e9929d8f38e69a0e9feda7fb49bb0b0f31ab9b5
     # Ensure bot_state messages are in sync with session messages
     if "messages" in st.session_state.bot_state:
         st.session_state.bot_state["messages"] = st.session_state.messages.copy()
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1e9929d8f38e69a0e9feda7fb49bb0b0f31ab9b5
 # Function to serialize messages for storage
 def serialize_messages(messages):
     """Convert messages to JSON-serializable format"""
@@ -118,7 +136,10 @@ def serialize_messages(messages):
             serialized.append({"type": "ai", "content": msg.content})
     return serialized
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1e9929d8f38e69a0e9feda7fb49bb0b0f31ab9b5
 # Function to deserialize messages from storage
 def deserialize_messages(serialized_messages):
     """Convert JSON-serializable format back to messages"""
@@ -130,7 +151,10 @@ def deserialize_messages(serialized_messages):
             messages.append(AIMessage(content=msg["content"]))
     return messages
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1e9929d8f38e69a0e9feda7fb49bb0b0f31ab9b5
 # Initialize session state
 initialize_session_state()
 
@@ -204,10 +228,15 @@ with st.sidebar:
     with st.expander("🔍 Debug Info"):
         st.write(f"Conversation ID: {st.session_state.conversation_id}")
         st.write(f"Number of messages: {len(st.session_state.messages)}")
+<<<<<<< HEAD
         st.write(
             f"Bot state active: {st.session_state.bot_state.get('conversation_active', True)}"
         )
 
+=======
+        st.write(f"Bot state active: {st.session_state.bot_state.get('conversation_active', True)}")
+        
+>>>>>>> 1e9929d8f38e69a0e9feda7fb49bb0b0f31ab9b5
         # Show serialized state for debugging
         if st.button("Show Serialized State"):
             st.json(serialize_messages(st.session_state.messages))
@@ -287,6 +316,7 @@ if user_input:
         try:
             # Create a copy of bot state for the invocation
             current_state = st.session_state.bot_state.copy()
+<<<<<<< HEAD
 
             # Invoke the medical bot with current state
             result = medical_bot.invoke(
@@ -311,6 +341,27 @@ if user_input:
                         isinstance(msg, AIMessage)
                         and msg.content not in existing_message_contents
                     ):
+=======
+            
+            # Invoke the medical bot with current state
+            result = medical_bot.invoke(
+                current_state,
+                config={
+                    "configurable": {"thread_id": st.session_state.conversation_id},
+                    "recursion_limit": 100,
+                },
+            )
+
+            # Update the bot state with the result
+            st.session_state.bot_state.update(result)
+
+            # Extract new messages from the result
+            if "messages" in result:
+                # Get only new messages that aren't already in session state
+                existing_message_contents = [msg.content for msg in st.session_state.messages]
+                for msg in result["messages"]:
+                    if isinstance(msg, AIMessage) and msg.content not in existing_message_contents:
+>>>>>>> 1e9929d8f38e69a0e9feda7fb49bb0b0f31ab9b5
                         st.session_state.messages.append(msg)
 
             # Update conversation active status
@@ -383,4 +434,4 @@ with st.expander("📖 How to Use This Medical Assistant"):
     - Doctor referral recommendations
     - Conversation export for your records
     """
-    )
+        )
