@@ -1,21 +1,33 @@
+
+
 def convert_to_documents(dataset):
     """Convert Hugging Face dataset to LangChain documents"""
     documents = []
 
-    for i, example in enumerate(dataset):
+    # Verify dataset structure
+    print(f"Dataset type: {type(dataset)}")
+    print(f"First item type: {type(dataset[0])}")
 
+    for i, example in enumerate(dataset):
+        # Verify example type
+        if not isinstance(example, dict):
+            raise TypeError(f"Unexpected example type {type(example)} at index {i}")
+
+        # Access fields using dictionary keys
         question = example.get("question", "")
-        context = example.get("context", "")
+        context = example.get("context", {})
         long_answer = example.get("long_answer", "")
         final_decision = example.get("final_decision", "")
 
+        # Handle context which is itself a dictionary
+        context_str = (
+            context.get("contexts", [""])[0] if isinstance(context, dict) else ""
+        )
+
         # Combine the information into a single text
         content = f"""Question: {question}
-
-Context: {context}
-
+Context: {context_str}
 Answer: {long_answer}
-
 Final Decision: {final_decision}"""
 
         # Create document with metadata
@@ -30,18 +42,8 @@ Final Decision: {final_decision}"""
         )
         documents.append(doc)
 
-        # Limit to first 10000 documents for performance
-        if i >= 2000:
+        # Limit to first 3000 documents for performance
+        if i >= 3000:
             break
 
     return documents
-
-
-# print("Converting dataset to documents...")
-# docs = convert_to_documents(dataset)
-
-# Split documents into chunks
-# text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-# texts = text_splitter.split_documents(docs)
-
-# print(f"Created {len(texts)} text chunks from the dataset")

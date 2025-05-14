@@ -1,13 +1,15 @@
 import os
 from typing import Any, Dict, List, TypedDict
 
+from datasets import load_dataset
 from dotenv import load_dotenv
 from langchain.schema import Document
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
@@ -23,14 +25,59 @@ os.environ["LANGSMITH_PROJECT"] = os.getenv("LANGSMITH_PROJECT")
 os.environ["QDRANT_URL"] = os.getenv("QDRANT_URL")
 os.environ["QDRANT_API_KEY"] = os.getenv("QDRANT_API_KEY")
 
-
-# print("Loading PubMed QA dataset from Hugging Face...")
-
-# dataset = load_dataset("pubmed_qa", "pqa_labeled", split="train")
+print("Loading PubMed QA dataset from Hugging Face...")
+# Load PubMed QA dataset
+dataset = load_dataset("pubmed_qa", "pqa_labeled", split="train")
 
 
 # Convert dataset to LangChain documents
+def convert_to_documents(dataset):
+    """Convert Hugging Face dataset to LangChain documents"""
+    documents = []
 
+    for i, example in enumerate(dataset):
+        # Extract relevant information from each example
+        question = example.get("question", "")
+        context = example.get("context", "")
+        long_answer = example.get("long_answer", "")
+        final_decision = example.get("final_decision", "")
+
+        # Combine the information into a single text
+        content = f"""Question: {question}
+
+Context: {context}
+
+Answer: {long_answer}
+
+Final Decision: {final_decision}"""
+
+        # Create document with metadata
+        doc = Document(
+            page_content=content,
+            metadata={
+                "question": question,
+                "final_decision": final_decision,
+                "source": "pubmed_qa",
+                "index": i,
+            },
+        )
+        documents.append(doc)
+
+        # Limit to first 10000 documents for performance
+        if i >= 2500:
+            break
+
+    return documents
+
+
+print("Converting dataset to documents...")
+docs = convert_to_documents(dataset)
+
+# Split documents into chunks
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=200)
+texts = text_splitter.split_documents(docs)
+
+print(f"Created {len(texts)} text chunks from the dataset")
 
 # Setup embeddings and vector store
 model_name = "sentence-transformers/all-mpnet-base-v2"
@@ -42,8 +89,15 @@ hf = HuggingFaceEmbeddings(
 
 # Create vector store for knowledge search
 print("Creating vector store...")
-# db = Chroma.from_documents(texts, hf, persist_directory="data/pubmed_qa/")
-db = Chroma(persist_directory="data/pubmed_qa/", embedding_function=hf)
+# db = FAISS.from_documents(texts, hf)
+# db.save_local("data/pubmed_qa_faiss")
+if os.path.exists("data/pubmed_qa_faiss"):
+    db = FAISS.load_local(
+        "data/pubmed_qa_faiss", hf, allow_dangerous_deserialization=True
+    )
+else:
+    db = FAISS.from_documents(texts, hf)
+db.save_local("data/pubmed_qa_faiss")
 retriever = db.as_retriever(search_type="mmr", search_kwargs={"k": 4})
 
 # Setup LLM
@@ -441,7 +495,7 @@ Instructions:
 5. Offer practical advice when appropriate
 6. If symptoms are concerning, encourage medical evaluation
 7. Use the medical context to provide evidence-based information
-8. Be Clear and concise.
+8. Be very Clear and concise. Keep reply short but clear
 
 Respond in a caring, informative manner."""
 

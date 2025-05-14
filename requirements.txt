@@ -11,11 +11,3 @@ langchain-groq
 grandalf
 streamlit
 datasets
-protobuf==3.20.3
-chromadb==0.4.15
-langchain-chroma==0.0.4
-streamlit>=1.28.0
-langchain-core>=0.1.0
-langchain-community>=0.0.11
-protobuf==3.20.3
-faiss-cpu==1.7.4
