@@ -25,9 +25,7 @@ os.environ["LANGSMITH_PROJECT"] = os.getenv("LANGSMITH_PROJECT")
 os.environ["QDRANT_URL"] = os.getenv("QDRANT_URL")
 os.environ["QDRANT_API_KEY"] = os.getenv("QDRANT_API_KEY")
 
-print("Loading PubMed QA dataset from Hugging Face...")
-# Load PubMed QA dataset
-dataset = load_dataset("pubmed_qa", "pqa_labeled", split="train")
+
 
 
 # Convert dataset to LangChain documents
@@ -70,14 +68,6 @@ Final Decision: {final_decision}"""
     return documents
 
 
-print("Converting dataset to documents...")
-docs = convert_to_documents(dataset)
-
-# Split documents into chunks
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=200)
-texts = text_splitter.split_documents(docs)
-
-print(f"Created {len(texts)} text chunks from the dataset")
 
 # Setup embeddings and vector store
 model_name = "sentence-transformers/all-mpnet-base-v2"
@@ -96,8 +86,19 @@ if os.path.exists("data/pubmed_qa_faiss"):
         "data/pubmed_qa_faiss", hf, allow_dangerous_deserialization=True
     )
 else:
+    print("Loading PubMed QA dataset from Hugging Face...")
+# Load PubMed QA dataset    
+    dataset = load_dataset("pubmed_qa", "pqa_labeled", split="train")
+    print("Converting dataset to documents...")
+    docs = convert_to_documents(dataset)
+
+# Split documents into chunks
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=200)
+    texts = text_splitter.split_documents(docs)
+    print(f"Created {len(texts)} text chunks from the dataset")
     db = FAISS.from_documents(texts, hf)
-db.save_local("data/pubmed_qa_faiss")
+    db.save_local("data/pubmed_qa_faiss")
+
 retriever = db.as_retriever(search_type="mmr", search_kwargs={"k": 4})
 
 # Setup LLM
